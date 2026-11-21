@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Query, status
@@ -20,6 +21,14 @@ from schemas import (
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API de Agendamento e Serviços", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 STATUS_BLOQUEANTES = ["agendado", "confirmado"]
 TRANSICOES_VALIDAS = {
     "agendado": {"confirmado", "cancelado"},
