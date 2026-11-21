@@ -1,3 +1,5 @@
+import os
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -135,16 +137,5 @@ def listar_agendamentos(
         q = q.filter(Agendamento.status == status_filtro)
     return q.order_by(Agendamento.data_hora_inicio).all()
 
-@app.patch("/agendamentos/{agendamento_id}/status", response_model=AgendamentoResponse)
-def atualizar_status_agendamento(agendamento_id: int, payload: AgendamentoStatusUpdate, db: Session = Depends(get_db)):
-    ag = db.query(Agendamento).filter(Agendamento.id == agendamento_id).first()
-    if not ag:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
-    if payload.status == ag.status:
-        return ag
-    if payload.status not in TRANSICOES_VALIDAS.get(ag.status, set()):
-        raise HTTPException(status_code=422, detail=f"Transição inválida de '{ag.status}' para '{payload.status}'.")
-    ag.status = payload.status
-    db.commit()
-    db.refresh(ag)
-    return ag
+from fastapi.staticfiles import StaticFiles
+app.mount("/painel", StaticFiles(directory="/home/anamis797/painel-agendamento-servicos", html=True), name="painel")

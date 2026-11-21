@@ -51,6 +51,14 @@ class AgendamentoCreate(BaseModel):
 class AgendamentoStatusUpdate(BaseModel):
     status: Literal["agendado", "confirmado", "concluido", "cancelado"]
 
+class AgendamentoUpdate(BaseModel):
+    cliente_id: Optional[int] = Field(default=None, gt=0)
+    profissional_id: Optional[int] = Field(default=None, gt=0)
+    servico_id: Optional[int] = Field(default=None, gt=0)
+    data_hora_inicio: Optional[datetime] = None
+    observacoes: Optional[str] = Field(default=None, max_length=300)
+
+
 class AgendamentoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
