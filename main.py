@@ -138,4 +138,94 @@ def listar_agendamentos(
     return q.order_by(Agendamento.data_hora_inicio).all()
 
 from fastapi.staticfiles import StaticFiles
-app.mount("/painel", StaticFiles(directory="/home/anamis797/painel-agendamento-servicos", html=True), name="painel")
+from schemas import AgendamentoStatusUpdate, AgendamentoUpdate
+
+
+@app.patch("/agendamentos/{agendamento_id}/status", response_model=AgendamentoResponse)
+def atualizar_status_agendamento(
+    agendamento_id: int,
+    payload: AgendamentoStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    ag = db.query(Agendamento).filter(Agendamento.id == agendamento_id).first()
+    if not ag:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+    if payload.status in STATUS_BLOQUEANTES and ag.status not in STATUS_BLOQUEANTES:
+        conflito = (
+            db.query(Agendamento)
+            .filter(
+                Agendamento.id != agendamento_id,
+                Agendamento.profissional_id == ag.profissional_id,
+                Agendamento.status.in_(STATUS_BLOQUEANTES),
+                Agendamento.data_hora_inicio < ag.data_hora_fim,
+                Agendamento.data_hora_fim > ag.data_hora_inicio,
+            )
+            .first()
+        )
+        if conflito is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Conflito de horário: profissional já possui agendamento ativo nesse intervalo.",
+            )
+    ag.status = payload.status
+    db.commit()
+    db.refresh(ag)
+    return ag
+
+
+@app.patch("/agendamentos/{agendamento_id}", response_model=AgendamentoResponse)
+def atualizar_agendamento(
+    agendamento_id: int,
+    payload: AgendamentoUpdate,
+    db: Session = Depends(get_db),
+):
+    ag = db.query(Agendamento).filter(Agendamento.id == agendamento_id).first()
+    if not ag:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+
+    dados = (
+        payload.model_dump(exclude_unset=True)
+        if hasattr(payload, "model_dump")
+        else payload.dict(exclude_unset=True)
+    )
+    novo_profissional_id = dados.get("profissional_id", ag.profissional_id)
+    novo_servico_id = dados.get("servico_id", ag.servico_id)
+    novo_inicio = dados.get("data_hora_inicio", ag.data_hora_inicio)
+    novo_status = dados.get("status", ag.status)
+
+    srv = db.query(Servico).filter(Servico.id == novo_servico_id).first()
+    if not srv:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    novo_fim = novo_inicio + timedelta(minutes=srv.duracao_minutos)
+
+    if novo_status in STATUS_BLOQUEANTES:
+        conflito = (
+            db.query(Agendamento)
+            .filter(
+                Agendamento.id != agendamento_id,
+                Agendamento.profissional_id == novo_profissional_id,
+                Agendamento.status.in_(STATUS_BLOQUEANTES),
+                Agendamento.data_hora_inicio < novo_fim,
+                Agendamento.data_hora_fim > novo_inicio,
+            )
+            .first()
+        )
+        if conflito is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Conflito de horário: profissional já possui agendamento ativo nesse intervalo.",
+            )
+
+    for campo, valor in dados.items():
+        if hasattr(ag, campo):
+            setattr(ag, campo, valor)
+    ag.data_hora_fim = novo_fim
+
+    db.commit()
+    db.refresh(ag)
+    return ag
+
+
+PAINEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "painel")
+if os.path.isdir(PAINEL_DIR):
+    app.mount("/painel", StaticFiles(directory=PAINEL_DIR, html=True), name="painel")
