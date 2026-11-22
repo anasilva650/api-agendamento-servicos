@@ -1,5 +1,13 @@
 # API de Agendamento e Serviços
 
+## Acesso Online (Deploy no Render)
+
+- **Painel Web:** https://api-agendamento-servicos.onrender.com/painel/
+- **Documentação Interativa (Swagger):** https://api-agendamento-servicos.onrender.com/docs
+- **Status da API:** https://api-agendamento-servicos.onrender.com/
+
+> *Nota: no plano gratuito do Render, a primeira requisição após inatividade pode levar cerca de 50 segundos para iniciar.*
+
 API REST desenvolvida com **Python**, **FastAPI**, **SQLAlchemy** e **SQLite** para gestão de clientes, profissionais, serviços e agendamentos com validação automática de conflitos de horário.
 
 ## Funcionalidades
